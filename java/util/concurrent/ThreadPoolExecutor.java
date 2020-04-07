@@ -72,7 +72,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     private static boolean runStateAtLeast(int c, int s) {
         return c >= s;
     }
-
+    /**判断线程池得状态**/
     private static boolean isRunning(int c) {
         return c < SHUTDOWN;
     }
@@ -279,6 +279,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         Worker(Runnable firstTask) {
             setState(-1); // inhibit interrupts until runWorker
             this.firstTask = firstTask;
+            /**线程工厂创建线程,丢进去this,所以返回的thread中的target是this对象**/
             this.thread = getThreadFactory().newThread(this);
         }
 
@@ -595,6 +596,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         boolean workerAdded = false;
         Worker w = null;
         try {
+            /**把任务丢进线程，Worker里面保存着一个线程和线程对应的任务**/
             w = new Worker(firstTask);
             final Thread t = w.thread;
             if (t != null) {
@@ -610,6 +612,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                         (rs == SHUTDOWN && firstTask == null)) {
                         if (t.isAlive()) // precheck that t is startable
                             throw new IllegalThreadStateException();
+                        /**将创建的工作线程加到容器中**/
                         workers.add(w);
                         int s = workers.size();
                         if (s > largestPoolSize)
@@ -620,6 +623,16 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                     mainLock.unlock();
                 }
                 if (workerAdded) {
+                    /***
+                     * 这里的t是工厂创建的线程池
+                     * 这里 1.t.start()调用Thread的start0()从而调用Thread的run、
+                     * 2.Thread的run里面调用target.run这里的target.run调用的是worker的run
+                     * 3.runWorker传入参数是worker，他拿到我们的task，然后直接run
+                     *
+                     *
+                     * 所以说我们每个任务其实相当于交给worker来执行了。
+                     *
+                     * */
                     t.start();
                     workerStarted = true;
                 }
@@ -724,7 +737,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 
             int wc = workerCountOf(c);
 
-            // Are workers subject to culling?
+            /**allowCoreThreadTimeOut为true表示允许核心线程超时关闭**/
             boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
 
             if ((wc > maximumPoolSize || (timed && timedOut))
@@ -999,16 +1012,16 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         if (command == null)
             throw new NullPointerException();
         int c = ctl.get();
-        /**如果当前线程池中的线程数(核心线程+普通线程)小于核心线程数的话**/
         if (workerCountOf(c) < corePoolSize) {
-            /**创建工作线程**/
+            /**创建核心线程，addWorker可以理解为创建一个线程,执行任务*/
             if (addWorker(command, true))
                 return;
             c = ctl.get();
         }
-        /**将任务添加到阻塞队列当中**/
+        /**线程数>=核心线程数，那么在线程池运行得状态下,将任务添加到阻塞队列当中**/
         if (isRunning(c) && workQueue.offer(command)) {
             int recheck = ctl.get();
+            /**再次检查线程池的状态，如果说关闭的话，则移除添加的任务，并且执行对应的拒绝策略**/
             if (! isRunning(recheck) && remove(command))
                 reject(command);
             else if (workerCountOf(recheck) == 0)
