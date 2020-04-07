@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 
 
+=======
+/**测试注释是否有效*/
+>>>>>>> 4377a708ea104b0fd65eb7022f0b6b84d201d1f2
 package java.lang;
 import java.lang.ref.*;
 import java.util.Objects;
