@@ -1,51 +1,15 @@
+<<<<<<< HEAD
+
+
+=======
 /**测试注释是否有效*/
+>>>>>>> 4377a708ea104b0fd65eb7022f0b6b84d201d1f2
 package java.lang;
 import java.lang.ref.*;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-/**
- * This class provides thread-local variables.  These variables differ from
- * their normal counterparts in that each thread that accesses one (via its
- * {@code get} or {@code set} method) has its own, independently initialized
- * copy of the variable.  {@code ThreadLocal} instances are typically private
- * static fields in classes that wish to associate state with a thread (e.g.,
- * a user ID or Transaction ID).
- *
- * <p>For example, the class below generates unique identifiers local to each
- * thread.
- * A thread's id is assigned the first time it invokes {@code ThreadId.get()}
- * and remains unchanged on subsequent calls.
- * <pre>
- * import java.util.concurrent.atomic.AtomicInteger;
- *
- * public class ThreadId {
- *     // Atomic integer containing the next thread ID to be assigned
- *     private static final AtomicInteger nextId = new AtomicInteger(0);
- *
- *     // Thread local variable containing each thread's ID
- *     private static final ThreadLocal&lt;Integer&gt; threadId =
- *         new ThreadLocal&lt;Integer&gt;() {
- *             &#64;Override protected Integer initialValue() {
- *                 return nextId.getAndIncrement();
- *         }
- *     };
- *
- *     // Returns the current thread's unique ID, assigning it if necessary
- *     public static int get() {
- *         return threadId.get();
- *     }
- * }
- * </pre>
- * <p>Each thread holds an implicit reference to its copy of a thread-local
- * variable as long as the thread is alive and the {@code ThreadLocal}
- * instance is accessible; after a thread goes away, all of its copies of
- * thread-local instances are subject to garbage collection (unless other
- * references to these copies exist).
- *
- * @author  Josh Bloch and Doug Lea
- * @since   1.2
  */
 public class ThreadLocal<T> {
     /**
@@ -136,6 +100,7 @@ public class ThreadLocal<T> {
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         if (map != null) {
+            ThreadLocalMap.Entry e = map.getEntry(this);
             ThreadLocalMap.Entry e = map.getEntry(this);
             if (e != null) {
                 @SuppressWarnings("unchecked")
@@ -284,7 +249,6 @@ public class ThreadLocal<T> {
         static class Entry extends WeakReference<ThreadLocal<?>> {
             /** The value associated with this ThreadLocal. */
             Object value;
-
             Entry(ThreadLocal<?> k, Object v) {
                 super(k);
                 value = v;
@@ -376,38 +340,23 @@ public class ThreadLocal<T> {
             }
         }
 
-        /**
-         * Get the entry associated with key.  This method
-         * itself handles only the fast path: a direct hit of existing
-         * key. It otherwise relays to getEntryAfterMiss.  This is
-         * designed to maximize performance for direct hits, in part
-         * by making this method readily inlinable.
-         *
-         * @param  key the thread local object
-         * @return the entry associated with key, or null if no such
-         */
+
         private Entry getEntry(ThreadLocal<?> key) {
             int i = key.threadLocalHashCode & (table.length - 1);
             Entry e = table[i];
+            /**这块为什么还需要判断一下key是否相等，因为采用的连地址即使你哈希值对应key也不一定对应**/
             if (e != null && e.get() == key)
                 return e;
             else
                 return getEntryAfterMiss(key, i, e);
         }
 
-        /**
-         * Version of getEntry method for use when key is not found in
-         * its direct hash slot.
-         *
-         * @param  key the thread local object
-         * @param  i the table index for key's hash code
-         * @param  e the entry at table[i]
-         * @return the entry associated with key, or null if no such
+
          */
         private Entry getEntryAfterMiss(ThreadLocal<?> key, int i, Entry e) {
             Entry[] tab = table;
             int len = tab.length;
-
+            /**继续往后寻找**/
             while (e != null) {
                 ThreadLocal<?> k = e.get();
                 if (k == key)
@@ -428,32 +377,28 @@ public class ThreadLocal<T> {
          * @param value the value to be set
          */
         private void set(ThreadLocal<?> key, Object value) {
-
-            // We don't use a fast path as with get() because it is at
-            // least as common to use set() to create new entries as
-            // it is to replace existing ones, in which case, a fast
-            // path would fail more often than not.
-
+            /**获取当前的哈希表**/
             Entry[] tab = table;
+            /**拿到哈希表的长度**/
             int len = tab.length;
+            /**计算哈希值**/
             int i = key.threadLocalHashCode & (len-1);
-
-            for (Entry e = tab[i];
-                 e != null;
-                 e = tab[i = nextIndex(i, len)]) {
+            /**寻址伐解决哈希冲突**/
+            for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
+                /**获取Key**/
                 ThreadLocal<?> k = e.get();
-
+                /**key重复直接覆盖**/
                 if (k == key) {
                     e.value = value;
                     return;
                 }
-
+                /**key为空则放进去,不为空则证明冲突继续找，继续寻找地址*/
                 if (k == null) {
                     replaceStaleEntry(key, value, i);
                     return;
                 }
             }
-
+            /**找到空的坑位，放进去**/
             tab[i] = new Entry(key, value);
             int sz = ++size;
             if (!cleanSomeSlots(i, sz) && sz >= threshold)
