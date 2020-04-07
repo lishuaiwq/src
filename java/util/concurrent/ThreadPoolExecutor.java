@@ -41,6 +41,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     /***
      * 线程池处于停止状态 001
      * 001 00000000000000000000000000000
+     *
      */
     private static final int STOP       =  1 << COUNT_BITS;
     /***
@@ -560,6 +561,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * value to ensure reads of fresh values after checking other pool
      * state).
      * @return true if successful
+     * 这个函数实际实现了两个功能
+     * 1，循环CAS将线程池中的总线程数+1
+     * 2.新建线程，并加入到线程池workers当中去
      */
     private boolean addWorker(Runnable firstTask, boolean core) {
         retry:
@@ -1008,6 +1012,12 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         }
         /**将任务添加到阻塞队列当中**/
         if (isRunning(c) && workQueue.offer(command)) {
+            /***
+             * 添加成功则进行二次校验，因为在这个时候线程池的状态会存在改变的情况
+             * 1) 如果线程池不是运行状态，则移除任务，如果移除成功则执行拒绝策略，如果移除失败则判断线程池中是否还有工作线程，
+             * 没有则创建一个工作线程
+             * 2)如果线程池属于执行状态，则判断是否有工作线程，没有则创建一个来消费队列。
+             */
             int recheck = ctl.get();
             if (! isRunning(recheck) && remove(command))
                 reject(command);
